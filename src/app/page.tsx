@@ -385,9 +385,9 @@ export default function Home() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
-      window.removeEventListener('touchstart', onTouchStart as any);
-      window.removeEventListener('touchmove', onTouchMove as any);
-      window.removeEventListener('touchend', onTouchEnd as any);
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
     };
   }, []);
 
@@ -398,7 +398,7 @@ export default function Home() {
     if (!ctx) return;
 
     let raf = 0 as number;
-    let fontSize = 16;
+    const fontSize = 16;
     const chars = "01ABCDEF<>[]{}#@$%&*+-".split("");
     let columns = 0;
     let drops: number[] = [];
@@ -467,7 +467,7 @@ export default function Home() {
       const data = await res.json();
       setResult({ ok: !!data?.ok, message: data?.message || (res.ok ? "Đã gửi thư mời" : "Gửi thất bại") });
       if (res.ok && emailRef.current) emailRef.current.value = "";
-    } catch (err) {
+    } catch {
       setResult({ ok: false, message: "Có lỗi xảy ra, vui lòng thử lại" });
     } finally {
       setSending(false);
@@ -516,7 +516,7 @@ export default function Home() {
       };
       mr.start();
       setRecording(true);
-    } catch (err) {
+    } catch {
       setWishResult({ ok: false, message: "Không thể truy cập micro" });
       setRecording(false);
     }
@@ -580,7 +580,7 @@ export default function Home() {
         if (messageRef.current) messageRef.current.value = "";
         setMessageText("");
       }
-    } catch (err) {
+    } catch {
       setWishResult({ ok: false, message: "Có lỗi xảy ra, vui lòng thử lại" });
     } finally {
       setWishSending(false);
