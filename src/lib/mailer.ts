@@ -28,7 +28,7 @@ export async function sendInviteEmail(toEmail: string) {
         <li><strong>Địa điểm</strong>: Hội trường 300, Trường Đại học Mỏ — Địa chất</li>
         <li><strong>Địa chỉ</strong>: Số 8, phố Viên, phường Đức Thắng, Bắc Từ Liêm, Hà Nội</li>
       </ul>
-      <p>Nếu cần hỗ trợ, vui lòng liên hệ: <a href="tel:0976787989">0976 787 989</a>.</p>
+      <p>Nếu cần hỗ trợ, vui lòng liên hệ: <a href="tel:0974758821">0974 758 821</a>.</p>
       <hr style="margin:20px 0;border:none;border-top:1px solid #e5e7eb" />
       <p>Trân trọng mời.</p>
     </div>
