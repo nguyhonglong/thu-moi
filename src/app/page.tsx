@@ -168,7 +168,6 @@ export default function Home() {
     let ticking = false;
 
     function makeBoltPath(height: number, side: 'left' | 'right'): string {
-      const width = 60; // svg viewBox width
       const segments = Math.max(10, Math.floor(height / 80));
       let x = 30;
       const amp = 18;
@@ -187,7 +186,7 @@ export default function Home() {
       const h = window.innerHeight;
       const d = makeBoltPath(h, side);
       pathEl.setAttribute('d', d);
-      const len = (pathEl as any).getTotalLength?.() || 800;
+      const len = pathEl.getTotalLength();
       pathEl.style.transition = 'none';
       pathEl.style.strokeDasharray = String(len);
       pathEl.style.strokeDashoffset = String(len);
@@ -216,7 +215,7 @@ export default function Home() {
           d += ` L ${x.toFixed(1)} ${startY.toFixed(1)}`;
         }
         p.setAttribute('d', d);
-        const len = (p as any).getTotalLength?.() || 300;
+        const len = p.getTotalLength();
         p.style.transition = 'none';
         p.style.strokeDasharray = String(len);
         p.style.strokeDashoffset = String(len);
@@ -252,7 +251,7 @@ export default function Home() {
 
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
-      window.removeEventListener('scroll', onScroll as any);
+      window.removeEventListener('scroll', onScroll);
       if (boltTimerRef.current) window.clearTimeout(boltTimerRef.current);
       if (shakeTimerRef.current) window.clearTimeout(shakeTimerRef.current);
     };

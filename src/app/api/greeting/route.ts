@@ -25,8 +25,8 @@ export async function POST(request: Request) {
 
     if (audio) {
       const sizeLimit = 15 * 1024 * 1024; // 15MB
-      // @ts-ignore: size may not exist on File in older lib dom types
-      const fileSize = (audio as any).size ?? 0;
+      // @ts-expect-error: For very old DOM lib versions, size may be missing
+      const fileSize: number = typeof (audio as File).size === "number" ? (audio as File).size : 0;
       if (fileSize > sizeLimit) {
         return NextResponse.json({ ok: false, message: "File quá lớn (tối đa 15MB)" }, { status: 413 });
       }
@@ -38,8 +38,8 @@ export async function POST(request: Request) {
         senderName: name,
         senderEmail: email,
         audioBuffer: buffer,
-        mimeType: (audio as any).type || "audio/webm",
-        filename: (audio as any).name || `loi-chuc-${Date.now()}.webm`,
+        mimeType: (audio as File).type || "audio/webm",
+        filename: (audio as File).name || `loi-chuc-${Date.now()}.webm`,
         textMessage: message || undefined,
       });
       return NextResponse.json({ ok: true, message: "Đã gửi lời chúc tới Long" });
