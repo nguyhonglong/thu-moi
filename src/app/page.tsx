@@ -258,7 +258,7 @@ export default function Home() {
     };
   }, []);
 
-  // Interactive spiderwebs on mobile
+  // Interactive spiderwebs on mobile (persistent, pre-spawned)
   useEffect(() => {
     const canvas = webCanvasRef.current;
     if (!canvas) return;
@@ -267,7 +267,7 @@ export default function Home() {
 
     const isMobile = () => window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 768;
     let raf = 0 as number;
-    const webs: Array<{ cx: number; cy: number; spokes: Array<{ angle: number; len: number; base: number }>; life: number }> = [];
+    const webs: Array<{ cx: number; cy: number; spokes: Array<{ angle: number; len: number; base: number }> }> = [];
 
     const resize = () => {
       const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
@@ -289,15 +289,15 @@ export default function Home() {
         const base = 80 + Math.random() * 80;
         return { angle, len: base, base };
       });
-      webs.push({ cx: x, cy: y, spokes, life: 1 });
-      if (webs.length > 6) webs.shift();
+      webs.push({ cx: x, cy: y, spokes });
     }
 
     let activeIndex: number | null = null;
     const onTouchStart = (e: TouchEvent) => {
       if (!isMobile()) return;
       const t = e.touches[0];
-      const x = t.clientX, y = t.clientY;
+      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      const x = t.clientX, y = t.clientY + scrollY;
       // pick nearest or create
       let idx = -1, best = 1e9;
       for (let i = 0; i < webs.length; i++) {
@@ -305,18 +305,22 @@ export default function Home() {
         const d2 = dx * dx + dy * dy;
         if (d2 < best) { best = d2; idx = i; }
       }
-      if (best > 160 * 160 || idx === -1) {
-        spawnWeb(x, y);
-        activeIndex = webs.length - 1;
-      } else activeIndex = idx;
+      // only interact with existing webs; do not create new ones
+      if (best < 220 * 220 && idx !== -1) {
+        activeIndex = idx;
+      } else {
+        activeIndex = null;
+      }
     };
     const onTouchMove = (e: TouchEvent) => {
       if (!isMobile()) return;
       if (activeIndex == null) return;
       const t = e.touches[0];
+      const targetX = t.clientX;
+      const targetY = t.clientY + (window.scrollY || document.documentElement.scrollTop || 0);
       const web = webs[activeIndex];
-      web.cx += (t.clientX - web.cx) * 0.25;
-      web.cy += (t.clientY - web.cy) * 0.25;
+      web.cx += (targetX - web.cx) * 0.25;
+      web.cy += (targetY - web.cy) * 0.25;
     };
     const onTouchEnd = () => { activeIndex = null; };
 
@@ -325,9 +329,14 @@ export default function Home() {
     window.addEventListener('touchend', onTouchEnd, { passive: true });
 
     const draw = () => {
+      ctx.setTransform(1,0,0,1,0,0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.globalCompositeOperation = 'lighter';
-      webs.forEach((w, wi) => {
+      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      // Translate canvas so webs are drawn at document coordinates minus scroll
+      ctx.setTransform(dpr, 0, 0, dpr, 0, -scrollY * dpr);
+      webs.forEach((w) => {
         // animate spokes
         w.spokes.forEach((s, i) => {
           s.len += Math.sin((Date.now() * 0.002 + i * 0.7)) * 0.6;
@@ -357,24 +366,22 @@ export default function Home() {
           ctx.closePath();
           ctx.stroke();
         }
-        // fade out slowly when not active
-        w.life -= 0.003;
-        if (w.life <= 0) { webs.splice(wi, 1); }
       });
+      // reset transform after drawing
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
 
-    // spawn on scroll near edges
-    const onScrollSpawn = () => {
-      if (!isMobile()) return;
-      const y = 40 + Math.random() * (window.innerHeight - 80);
-      const side = Math.random() < 0.5 ? 16 : window.innerWidth - 16;
-      spawnWeb(side, y);
-      wrapRef.current?.classList.add('webs-on');
-      window.setTimeout(() => wrapRef.current?.classList.remove('webs-on'), 1200);
-    };
-    window.addEventListener('scroll', onScrollSpawn, { passive: true });
+    // pre-spawn a few persistent webs distributed across the document height
+    if (isMobile()) {
+      const wv = window.innerWidth;
+      const docH = Math.max(document.documentElement.scrollHeight, window.innerHeight);
+      spawnWeb(wv * 0.18, docH * 0.20);
+      spawnWeb(wv * 0.82, docH * 0.35);
+      spawnWeb(wv * 0.22, docH * 0.65);
+      spawnWeb(wv * 0.78, docH * 0.80);
+    }
 
     return () => {
       cancelAnimationFrame(raf);
@@ -382,7 +389,6 @@ export default function Home() {
       window.removeEventListener('touchstart', onTouchStart as any);
       window.removeEventListener('touchmove', onTouchMove as any);
       window.removeEventListener('touchend', onTouchEnd as any);
-      window.removeEventListener('scroll', onScrollSpawn as any);
     };
   }, []);
 
@@ -647,7 +653,7 @@ export default function Home() {
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <a className="btn call" href="tel:0974758821" aria-label="Gọi ngay 0974758821">Gọi ngay: 0974758821</a>
             </div>
-          </div>
+            </div>
           </div>
         </div>
 
@@ -675,7 +681,7 @@ export default function Home() {
               />
             </div>
             <div className="footer">
-              <div style={{ opacity: 0.9 }}>Số 8, phố Viên, Đức Thắng, Bắc Từ Liêm, Hà Nội</div>
+              <div style={{ opacity: 1, color: '#ffffff', textShadow: '0 0 8px rgba(255,255,255,0.25)' }}>Số 8, phố Viên, Đức Thắng, Bắc Từ Liêm, Hà Nội</div>
               <a className="btn" href="https://www.google.com/maps?q=Tr%C6%B0%E1%BB%9Dng%20%C4%90%E1%BA%A1i%20h%E1%BB%8Dc%20M%E1%BB%8F%20-%20%C4%90%E1%BB%8Ba%20ch%E1%BA%A5t%2C%20S%E1%BB%91%208%20Ph%E1%BB%91%20Vi%C3%AAn%2C%20%C4%90%E1%BB%A9c%20Th%E1%BA%AFng%2C%20B%E1%BA%AFc%20T%E1%BB%AB%20Li%C3%AAm%2C%20H%C3%A0%20N%E1%BB%99i&output=classic" target="_blank" rel="noopener noreferrer">Chỉ đường</a>
             </div>
           </aside>
@@ -717,19 +723,27 @@ export default function Home() {
               </div>
             </div>
             <form className="rsvpForm" onSubmit={submitWish}>
-              <div className="row" role="radiogroup" aria-label="Chọn cách gửi lời chúc">
-                <label className="btn" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input type="radio" name="wish-mode" checked={wishMode === "voice"} onChange={() => setWishMode("voice")} /> Bằng giọng nói
+              <div className="options" role="radiogroup" aria-label="Chọn cách gửi lời chúc">
+                <label className="seg">
+                  <input type="radio" name="wish-mode" checked={wishMode === "voice"} onChange={() => setWishMode("voice")} />
+                  <span>Bằng giọng nói</span>
                 </label>
-                <label className="btn" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input type="radio" name="wish-mode" checked={wishMode === "text"} onChange={() => setWishMode("text")} /> Bằng văn bản
+                <label className="seg">
+                  <input type="radio" name="wish-mode" checked={wishMode === "text"} onChange={() => setWishMode("text")} />
+                  <span>Bằng văn bản</span>
                 </label>
               </div>
-              <label htmlFor="wish-name" className="label">Tên của bạn</label>
-              <input id="wish-name" ref={nameWishRef} type="text" placeholder="Nguyễn Văn A" className="input" aria-label="Tên" required />
 
-              <label htmlFor="wish-email" className="label">Email của bạn</label>
-              <input id="wish-email" ref={emailWishRef} type="email" placeholder="you@example.com" className="input" aria-label="Email" required />
+              <div className="formGrid">
+                <div className="field">
+                  <label htmlFor="wish-name" className="label">Tên của bạn</label>
+                  <input id="wish-name" ref={nameWishRef} type="text" placeholder="Nguyễn Văn A" className="input" aria-label="Tên" required />
+                </div>
+                <div className="field">
+                  <label htmlFor="wish-email" className="label">Email của bạn</label>
+                  <input id="wish-email" ref={emailWishRef} type="email" placeholder="you@example.com" className="input" aria-label="Email" required />
+                </div>
+              </div>
 
               {wishMode === "voice" ? (
                 <div className="recorder">
@@ -784,7 +798,7 @@ export default function Home() {
                 </div>
               )}
 
-              <div className="row">
+              <div className="row actions">
                 <button className="btn submit" type="submit" disabled={
                   wishSending || (
                     wishMode === "text" ? messageText.trim().length === 0 : !audioBlob
@@ -807,12 +821,12 @@ export default function Home() {
 
       <style jsx global>{`
         :root{--bg:#0b0c10;--panel:#0c1014;--accent:#ff3b3b;--muted:#98a2b3}
-        html,body{height:100%;margin:0;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;background:linear-gradient(180deg,#05070a 0%, #0b0e13 100%);color:#f4eaea;scroll-behavior:smooth;-webkit-overflow-scrolling:touch}
-        .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:32px;cursor:none}
-        .layout{display:grid;gap:18px;align-items:start;justify-content:center;width:100%;max-width:1200px;margin:0 auto;grid-template-columns:minmax(0,1fr) minmax(300px,520px);position:relative;z-index:2}
+        html,body{min-height:100%;height:auto;margin:0;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;background:linear-gradient(180deg,#05070a 0%, #0b0e13 100%);color:#f4eaea;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;overflow-x:hidden}
+        .wrap{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:32px 40px;cursor:none}
+        .layout{display:grid;gap:18px;align-items:start;justify-content:center;width:100%;max-width:1280px;margin:0 auto;grid-template-columns:minmax(0,1fr) minmax(300px,560px);position:relative;z-index:2}
         .leftCol{display:flex;flex-direction:column;gap:18px;min-width:0}
         .rightCol{display:flex;flex-direction:column;gap:18px;width:100%;max-width:520px}
-        .terminal{flex:1 1 680px;min-width:0;background:linear-gradient(180deg,var(--panel),#0b0e13);border-radius:12px;padding:20px 18px;box-shadow:0 20px 60px rgba(2,6,12,0.7);border:0;position:relative}
+        .terminal{flex:1 1 720px;min-width:0;background:linear-gradient(180deg,var(--panel),#0b0e13);border-radius:12px;padding:22px 20px;box-shadow:0 20px 60px rgba(2,6,12,0.7);border:0;position:relative}
         .mapCard{width:100%;background:linear-gradient(180deg,var(--panel),#0b0e13);border-radius:12px;padding:20px 18px;box-shadow:0 20px 60px rgba(2,6,12,0.7);border:1px solid rgba(255,255,255,0.03);position:relative}
         .avatarCard{width:100%;background:linear-gradient(180deg,var(--panel),#0b0e13);border-radius:12px;padding:20px 18px;box-shadow:0 20px 60px rgba(2,6,12,0.7);border:1px solid rgba(255,255,255,0.03);position:relative}
         .rsvpCard{width:100%;background:linear-gradient(180deg,var(--panel),#0b0e13);border-radius:12px;padding:20px 18px;box-shadow:0 20px 60px rgba(2,6,12,0.7);border:1px solid rgba(255,255,255,0.03);position:relative}
@@ -822,11 +836,13 @@ export default function Home() {
         .dot.red{background:#ff605c}
         .dot.yellow{background:#ffbd2e}
         .dot.green{background:#28ca41}
-        .screen{background:rgba(3,10,20,0.6);border-radius:8px;padding:18px;min-height:340px;position:relative;overflow:hidden}
+        .screen{background:rgba(3,10,20,0.6);border-radius:8px;padding:18px;min-height:340px;position:relative;overflow:auto}
         .inviteBox{display:inline-block;max-width:100%;padding:14px 16px;border:1px solid rgba(255,255,255,0.08);border-radius:10px;background:rgba(0,0,0,0.15);box-shadow:0 8px 24px rgba(0,0,0,0.35)}
         .inviteBox .lines{max-width:100%;overflow-wrap:anywhere}
         .mapBody{background:rgba(3,10,20,0.6);border-radius:8px;height:clamp(260px, 42vw, 420px);position:relative;overflow:hidden}
         .gmap{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+        /* prevent edge clipping */
+        .terminal,.mapCard,.rsvpCard,.avatarCard{box-sizing:border-box;max-width:100%}
         .crypto-bg{position:fixed;inset:0;pointer-events:none;opacity:.28;z-index:0}
         .web-bg{position:fixed;inset:0;pointer-events:none;z-index:10001;opacity:.55;mix-blend-mode:screen}
         .boltSvg{position:fixed;top:0;left:0;height:100vh;width:60px;pointer-events:none;opacity:0;z-index:10002;mix-blend-mode:screen}
@@ -835,6 +851,7 @@ export default function Home() {
         .boltBranch{fill:none;stroke:#cfe7ff;stroke-width:1.4;opacity:.0;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 8px rgba(200,230,255,0.9))}
         .wrap.bolts-on .boltSvg{opacity:1}
         .wrap.shake{animation:shakeY .32s cubic-bezier(.36,.07,.19,.97) both}
+        .wrap.shake .web-bg{animation:shakeY .32s cubic-bezier(.36,.07,.19,.97) both}
         @keyframes shakeY{10%,90%{transform:translate3d(-3px,0,0) rotate(-0.25deg)}20%,80%{transform:translate3d(3px,0,0) rotate(0.25deg)}30%,50%,70%{transform:translate3d(-6px,0,0) rotate(-0.35deg)}40%,60%{transform:translate3d(6px,0,0) rotate(0.35deg)}}
         .avatarBody{display:flex;gap:14px;align-items:center}
         .avatarBox{position:relative;width:64px;height:64px;border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);box-shadow:0 8px 22px rgba(0,0,0,0.35)}
@@ -856,6 +873,22 @@ export default function Home() {
         .terminal:hover,.mapCard:hover,.rsvpCard:hover{box-shadow:0 26px 80px rgba(2,6,12,0.9);border-color:rgba(255,255,255,0.08);transform:translateY(-2px)}
         
         .rsvpForm{display:flex;flex-direction:column;gap:10px}
+        .options{display:flex;gap:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);padding:6px;border-radius:10px;width:fit-content}
+        .seg{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);padding:6px 10px;border-radius:8px;cursor:pointer}
+        .seg input{accent-color:#ff4d6d}
+        .seg:hover{background:rgba(255,255,255,0.06)}
+        .formGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .field{display:flex;flex-direction:column;gap:6px}
+        .actions{justify-content:flex-end}
+        
+        /* Mobile optimizations */
+        @media (max-width:600px){
+          .options{width:100%;justify-content:space-between}
+          .seg{flex:1;justify-content:center}
+          .formGrid{grid-template-columns:1fr;gap:10px}
+          .actions{justify-content:stretch}
+          .actions .submit{width:100%}
+        }
         .label{font-size:13px;color:rgba(255,255,255,0.6)}
         .row{display:flex;gap:10px}
         .input{flex:1;min-width:0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);color:#e9f6ff;border-radius:8px;padding:10px 12px;outline:none;transition:border-color .2s ease, box-shadow .2s ease}
@@ -921,7 +954,8 @@ export default function Home() {
           opacity:1;transform:scale(1);
         }
         @media (pointer: coarse){.cursor-ring,.cursor-dot{display:none}.wrap{cursor:auto}}
-        @media (max-width:1024px){.layout{grid-template-columns:1fr}.rightCol{max-width:unset;width:100%}}
+        @media (max-width:1280px){.layout{max-width:1200px;grid-template-columns:1fr 520px}}
+        @media (max-width:1100px){.layout{grid-template-columns:1fr}.rightCol{max-width:unset;width:100%}}
         @media (max-width:420px){.terminal{padding:14px}.screen{padding:12px}.mapCard{padding:14px}.rsvpCard{padding:14px}}
       `}</style>
     </div>
