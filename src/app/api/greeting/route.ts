@@ -25,7 +25,6 @@ export async function POST(request: Request) {
 
     if (audio) {
       const sizeLimit = 15 * 1024 * 1024; // 15MB
-      // @ts-expect-error: For very old DOM lib versions, size may be missing
       const fileSize: number = typeof (audio as File).size === "number" ? (audio as File).size : 0;
       if (fileSize > sizeLimit) {
         return NextResponse.json({ ok: false, message: "File quá lớn (tối đa 15MB)" }, { status: 413 });
